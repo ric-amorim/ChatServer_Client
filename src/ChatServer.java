@@ -16,6 +16,8 @@ public class ChatServer
 
   static private List<SocketChannel> channelList = new ArrayList<>();
 
+  static private Map<Integer,String> state = new HashMap<>();
+
   static private Map<Integer,String> nicknames = new HashMap<>();
 
   static private Map<String,List<String>> room = new HashMap<>();
@@ -72,6 +74,7 @@ public class ChatServer
             System.out.println( "Got connection from "+s );
 
             nicknames.put(s.getPort(),"");
+            state.put(s.getPort(),"init");
 
             // Make sure to make it non-blocking, so we can use a selector
             // on it.
@@ -153,18 +156,64 @@ public class ChatServer
 
     switch(command[0]){
         case "/nick": 
-            String name = command[1];
-            String resNick = disponivel(name,clientPort);
-            System.out.println(resNick);
+            if(state.get(clientPort) == "init"){
+                String nick = command[1];
+                String resNick = disponivel(nick,clientPort);
+                System.out.println(resNick);
+                if(resNick == "Ok"){
+                    state.put(clientPort,"outside");
+                }else if(resNick == "Error"){
+                    state.put(clientPort,"init");
+                }
+            }
+            else if(state.get(clientPort) == "outside"){
+                String nick = command[1];
+                String resNick = disponivel(nick,clientPort);
+                System.out.println(resNick);
+                if(resNick == "Ok"){
+                    state.put(clientPort,"outside");
+                }else if(resNick == "Error"){
+                    state.put(clientPort,"outside");
+                }
+            }   
+            else if(state.get(clientPort) == "inside"){
+                String nick = command[1];
+                String resNick = disponivel(nick,clientPort);
+                System.out.println(resNick);
+                if(resNick == "Ok"){
+                    state.put(clientPort,"inside");
+                }else if(resNick == "Error"){
+                    state.put(clientPort,"inside");
+                }
+            }
             break;
         case "/join":
-            String roomName = command[1];
-            String resJoin = createRoom(roomName,clientPort);
-            System.out.println(resJoin);
+            if(state.get(clientPort) == "outside"){
+                String roomName = command[1];
+                String resJoin = createRoom(roomName,clientPort);
+                System.out.println(resJoin);
+                if(resJoin == "OK"){
+                    state.put(clientPort,"inside");
+                }
+            }
+            else if(state.get(clientPort) == "inside"){
+                String roomName = command[1];
+                String resJoin = createRoom(roomName,clientPort);
+                System.out.println(resJoin);
+                if(resJoin == "OK"){
+                    state.put(clientPort,"inside");
+                }
+            }
             break;
         case "/leave":
             break;
         case "/bye":
+            break;
+        default:
+            if(state.get(clientPort) == "inside"){
+                System.out.println("MESSAGE " + nicknames.get(clientPort) + " " + msg);
+            }
+            System.out.println("Error");
             break;
     }
 
@@ -176,8 +225,13 @@ public class ChatServer
 }
     // Decode and print the message to stdout
     for(SocketChannel channel : channelList){ // alinea d
-        channel.write(buffer); // alinea c
-        buffer.flip();
+        if (channel.socket().getPort() == clientPort) continue;
+        for (String roomName : room.keySet()){
+            if(room.get(roomName).contains(nicknames.get(clientPort))){
+                channel.write(buffer);
+                buffer.flip();
+            }
+        } 
     }
     return true;
   }

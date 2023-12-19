@@ -16,7 +16,9 @@ public class ChatClient {
 
     // Se for necessário adicionar variáveis ao objecto ChatClient, devem
     // ser colocadas aqui
-
+    private String server;
+    private int port;
+    private Socket s;
 
 
     
@@ -63,6 +65,9 @@ public class ChatClient {
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
 
+        this.server = server;
+        this.port = port;
+
 
 
     }
@@ -71,19 +76,18 @@ public class ChatClient {
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
-        // PREENCHER AQUI com código que envia a mensagem ao servidor
+        message = message + "\n";
+        printMessage(message);
+        s.getOutputStream().write(message.getBytes());
 
-
+          
 
     }
 
     
     // Método principal do objecto
     public void run() throws IOException {
-        // PREENCHER AQUI
-
-
-
+        s = new Socket(server, port);
     }
     
 

@@ -76,6 +76,7 @@ public class ChatServer
             sc.register( selector, SelectionKey.OP_READ );
             channelList.add(sc);
 
+
           } else if (key.isReadable()) {
 
             SocketChannel sc = null;
@@ -84,7 +85,7 @@ public class ChatServer
               
               // It's incoming data on a connection -- process it
               sc = (SocketChannel)key.channel();
-              boolean ok = processInput( sc, channelList );
+              boolean ok = processInput( sc);
 
               // If the connection is dead, remove it from the selector
               // and close it
@@ -126,7 +127,7 @@ public class ChatServer
 
 
   // Just read the message from the socket and send it to stdout
-  static private boolean processInput( SocketChannel sc, List<SocketChannel> channelList ) throws IOException {
+  static private boolean processInput( SocketChannel sc) throws IOException {
     // Read the message to the buffer
     buffer.clear();
     sc.read( buffer );
@@ -136,6 +137,7 @@ public class ChatServer
     if (buffer.limit()==0) {
       return false;
     }
+    
 
     // Decode and print the message to stdout
     for(SocketChannel channel : channelList){ // alinea d

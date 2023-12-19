@@ -16,6 +16,10 @@ public class ChatServer
 
   static private List<SocketChannel> channelList = new ArrayList<>();
 
+  static private Map<Integer,String> nicknames = new HashMap<>();
+
+  static private Map<String,List<String>> room = new HashMap<>();
+
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
     int port = Integer.parseInt( args[0] );
@@ -66,6 +70,8 @@ public class ChatServer
             // the Selector so we can listen for input on it
             Socket s = ss.accept();
             System.out.println( "Got connection from "+s );
+
+            nicknames.put(s.getPort(),"");
 
             // Make sure to make it non-blocking, so we can use a selector
             // on it.
@@ -138,7 +144,36 @@ public class ChatServer
       return false;
     }
     
+    String msg = decoder.decode(buffer).toString(); 
+    System.out.print(msg);
 
+    String[] command = msg.split(" ",msg.length());
+        
+    Integer clientPort = sc.socket().getPort();
+
+    switch(command[0]){
+        case "/nick": 
+            String name = command[1];
+            String resNick = disponivel(name,clientPort);
+            System.out.println(resNick);
+            break;
+        case "/join":
+            String roomName = command[1];
+            String resJoin = createRoom(roomName,clientPort);
+            System.out.println(resJoin);
+            break;
+        case "/leave":
+            break;
+        case "/bye":
+            break;
+    }
+
+    for (Map.Entry<String, List<String>> entry : room.entrySet()) {
+        String key = entry.getKey();
+        List<String> value = entry.getValue();
+
+        System.out.println ("Key: " + key + " Value: " + value);
+}
     // Decode and print the message to stdout
     for(SocketChannel channel : channelList){ // alinea d
         channel.write(buffer); // alinea c
@@ -146,5 +181,26 @@ public class ChatServer
     }
     return true;
   }
+
+  static public String disponivel(String name,Integer port){
+      if(nicknames.containsValue(name)){
+          return "Error";
+      }
+      nicknames.put(port,name);
+      return "Ok";
+  }
+
+  static public String createRoom(String name,Integer port){
+      if(room.containsKey(name)){
+          room.get(name).add(nicknames.get(port));
+          return "OK";
+      }
+      room.put(name,new ArrayList<String>());
+      room.get(name).add(nicknames.get(port));
+      return "OK";
+  }
 }
+
+
+
 

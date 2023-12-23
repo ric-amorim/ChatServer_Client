@@ -19,6 +19,8 @@ public class ChatClient {
     private String server;
     private int port;
     private Socket s;
+    private BufferedReader r;
+    private BufferedWriter w;
 
 
     
@@ -78,16 +80,31 @@ public class ChatClient {
     public void newMessage(String message) throws IOException {
         message = message + "\n";
         printMessage(message);
-        s.getOutputStream().write(message.getBytes());
+        w.write(message);
+        w.flush();
 
           
 
     }
 
+    public void receiveMessages() {
+        try {
+            String line;
+            while ((line = r.readLine()) != null) {
+                printMessage(line + "\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
     
     // Método principal do objecto
     public void run() throws IOException {
         s = new Socket(server, port);
+        w = new BufferedWriter(new OutputStreamWriter(s.getOutputStream()));
+        r = new BufferedReader(new InputStreamReader(s.getInputStream()));
+
+        receiveMessages();
     }
     
 

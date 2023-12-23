@@ -249,6 +249,35 @@ public class ChatServer
             messageUser("BYE\n",sc);
             nicknames.remove(clientPort);
             return false;
+        case "/priv":
+            if(state.get(clientPort) != "init"){
+                String nick = command[1];
+                nick = nick+"\n";
+                if(nicknames.containsValue(nick)){
+                    messageUser("OK\n",sc);
+                    SocketChannel chn = null;
+                    String nickname = nicknames.get(clientPort).replace("\n", "");
+                    msg = "PRIVATE " + nickname + " " + command[2];
+                    buffer.clear();
+                    buffer.put(msg.getBytes());
+                    buffer.flip();
+                    for(SocketChannel channel : channelList){
+                        if(nicknames.get(channel.socket().getPort()).equals(nick)){
+                            chn = channel;
+                            chn.write(buffer);
+                            buffer.flip();
+                            break;
+                        }
+                    }
+
+                }else{
+                    messageUser("ERROR\n",sc);
+                    break;
+                }
+            }else{
+                messageUser("ERROR\n",sc);
+            }
+            break;
         default:
             if(state.get(clientPort) == "inside"){
                 String nickname = nicknames.get(clientPort).replace("\n", "");
@@ -319,8 +348,7 @@ public class ChatServer
     }
   }
 
-
-  static public void messageUser(String msg,SocketChannel sc){
+ static public void messageUser(String msg,SocketChannel sc){
       try{
         buffer.clear();
         buffer.put(msg.getBytes());

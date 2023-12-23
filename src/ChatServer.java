@@ -178,8 +178,11 @@ public class ChatServer
             }   
             else if(state.get(clientPort) == "inside"){
                 String nick = command[1];
+                String oldNick = nicknames.get(clientPort);
                 String resNick = disponivel(nick,clientPort);
-                System.out.println(resNick);
+                changeNick(oldNick,nick);
+                String oldNick2 = oldNick.replace("\n", "");
+                messageOthers(nicknames.get(clientPort),"NEWNICK " + oldNick2+ " " + nick,sc);
                 if(resNick == "Ok"){
                     state.put(clientPort,"inside");
                 }else if(resNick == "Error"){
@@ -190,16 +193,16 @@ public class ChatServer
         case "/join":
             if(state.get(clientPort) == "outside"){
                 String roomName = command[1];
-                String resJoin = joinRoom(roomName,clientPort);
-                messageUser(nicknames.get(clientPort),"OK\n",sc);
+                String resJoin = joinRoom(roomName,clientPort,"outside",sc);
+                messageUser("OK\n",sc);
                 if(resJoin == "OK"){
                     state.put(clientPort,"inside");
                 }
             }
             else if(state.get(clientPort) == "inside"){
                 String roomName = command[1];
-                String resJoin = joinRoom(roomName,clientPort);
-                messageUser(nicknames.get(clientPort),"OK\n",sc);
+                String resJoin = joinRoom(roomName,clientPort,"inside",sc);
+                messageUser("OK\n",sc);
                 if(resJoin == "OK"){
                     state.put(clientPort,"inside");
                 }
@@ -219,7 +222,7 @@ public class ChatServer
             if(state.get(clientPort) == "inside"){
                 String nickname = nicknames.get(clientPort).replace("\n", "");
                 String str = "MESSAGE " + nickname + ": " + msg;
-                messageUser(nicknames.get(clientPort),str,sc);
+                messageUser(str,sc);
                 messageOthers(nicknames.get(clientPort),str,sc);
             }
             System.out.println("Error");
@@ -253,20 +256,35 @@ public class ChatServer
       return "Ok";
   }
 
-  static public String joinRoom(String name,Integer port){
+  static public String joinRoom(String name,Integer port,String state,SocketChannel sc){
+      String nickname = nicknames.get(port);
+      if(state == "inside"){
+        for (Room room : rooms){
+            for (String user : room.getUsers()){
+                if(user == nicknames.get(port)){
+                    messageOthers(nicknames.get(port),"LEFT " + nickname,sc);
+                    room.removeUser(nicknames.get(port));
+                    break;
+                }
+            }
+        }
+      }
       for (Room room : rooms){
-          if(room.getName() == name){
+          if(room.getName().equals(name)){
               room.addUser(nicknames.get(port));
+              messageOthers(nicknames.get(port),"JOINED " + nickname,sc);
               return "OK";
           }
       }
       Room room = new Room(name);
       room.addUser(nicknames.get(port));
+      messageOthers(nicknames.get(port),"JOINED " + nickname,sc);
       rooms.add(room);
       return "OK";
   }
 
-  static public void messageUser(String name,String msg,SocketChannel sc){
+
+  static public void messageUser(String msg,SocketChannel sc){
       try{
         buffer.clear();
         buffer.put(msg.getBytes());
@@ -277,6 +295,17 @@ public class ChatServer
       }
   }
 
+  static public void changeNick(String oldNick,String newNick){
+      for (Room room : rooms){
+          for (String user : room.getUsers()){
+              if(user.equals(oldNick)){
+                  room.removeUser(oldNick);
+                  room.addUser(newNick);
+                  break;
+              }
+          }
+      }
+  }
   static public void messageOthers(String name,String msg,SocketChannel sc){
       try{
         buffer.clear();
@@ -284,8 +313,14 @@ public class ChatServer
         buffer.flip();
         for(SocketChannel channel : channelList){
             if (channel.socket().getPort() == sc.socket().getPort()) continue;
-            channel.write(buffer);
-            buffer.flip();
+            for (Room room : rooms){
+                if(room.getUsers().contains(nicknames.get(channel.socket().getPort()))
+                        && room.getUsers().contains(name)){
+                    channel.write(buffer);
+                    buffer.flip();
+                }
+
+            }
         }
       }catch(IOException ie){
         System.out.println(ie);

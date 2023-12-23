@@ -137,6 +137,7 @@ public class ChatServer
 
   // Just read the message from the socket and send it to stdout
   static private boolean processInput( SocketChannel sc) throws IOException {
+    Integer clientPort = sc.socket().getPort();
     // Read the message to the buffer
     buffer.clear();
     sc.read( buffer );
@@ -144,6 +145,12 @@ public class ChatServer
 
     // If no data, close the connection
     if (buffer.limit()==0) {
+      if(state.get(clientPort) == "inside"){
+          String str = "LEFT " + nicknames.get(clientPort);
+          messageOthers(nicknames.get(clientPort),str,sc);
+          removeFromRoom(clientPort);
+      }
+      nicknames.remove(clientPort);
       return false;
     }
     
@@ -152,27 +159,29 @@ public class ChatServer
 
     String[] command = msg.split(" ",msg.length());
         
-    Integer clientPort = sc.socket().getPort();
 
+    String str;
     switch(command[0]){
         case "/nick": 
             if(state.get(clientPort) == "init"){
                 String nick = command[1];
                 String resNick = disponivel(nick,clientPort);
-                System.out.println(resNick);
                 if(resNick == "Ok"){
+                    messageUser("OK\n",sc);
                     state.put(clientPort,"outside");
                 }else if(resNick == "Error"){
+                    messageUser("ERROR\n",sc);
                     state.put(clientPort,"init");
                 }
             }
             else if(state.get(clientPort) == "outside"){
                 String nick = command[1];
                 String resNick = disponivel(nick,clientPort);
-                System.out.println(resNick);
                 if(resNick == "Ok"){
+                    messageUser("OK\n",sc);
                     state.put(clientPort,"outside");
                 }else if(resNick == "Error"){
+                    messageUser("ERROR\n",sc);
                     state.put(clientPort,"outside");
                 }
             }   
@@ -180,14 +189,18 @@ public class ChatServer
                 String nick = command[1];
                 String oldNick = nicknames.get(clientPort);
                 String resNick = disponivel(nick,clientPort);
-                changeNick(oldNick,nick);
-                String oldNick2 = oldNick.replace("\n", "");
-                messageOthers(nicknames.get(clientPort),"NEWNICK " + oldNick2+ " " + nick,sc);
                 if(resNick == "Ok"){
+                    changeNick(oldNick,nick);
+                    String oldNick2 = oldNick.replace("\n", "");
+                    messageUser("OK\n",sc);
+                    messageOthers(nicknames.get(clientPort),"NEWNICK " + oldNick2+ " " + nick,sc);
                     state.put(clientPort,"inside");
                 }else if(resNick == "Error"){
+                    messageUser("ERROR\n",sc);
                     state.put(clientPort,"inside");
                 }
+            }else{
+                messageUser("ERROR\n",sc);
             }
             break;
         case "/join":
@@ -206,6 +219,8 @@ public class ChatServer
                 if(resJoin == "OK"){
                     state.put(clientPort,"inside");
                 }
+            }else{
+                messageUser("ERROR\n",sc);
             }
             for (Room room : rooms){
                 System.out.println(room.getName());
@@ -215,17 +230,34 @@ public class ChatServer
             }
             break;
         case "/leave":
+            if(state.get(clientPort) == "inside"){
+                messageUser("OK\n",sc);
+                str = "LEFT " + nicknames.get(clientPort);
+                messageOthers(nicknames.get(clientPort),str,sc);
+                state.put(clientPort,"outside");
+                removeFromRoom(clientPort);
+            }else{
+                messageUser("ERROR\n",sc);
+            }
             break;
         case "/bye":
-            break;
+            if(state.get(clientPort) == "inside"){
+                str = "LEFT " + nicknames.get(clientPort);
+                messageOthers(nicknames.get(clientPort),str,sc);
+                removeFromRoom(clientPort);
+            }
+            messageUser("BYE\n",sc);
+            nicknames.remove(clientPort);
+            return false;
         default:
             if(state.get(clientPort) == "inside"){
                 String nickname = nicknames.get(clientPort).replace("\n", "");
-                String str = "MESSAGE " + nickname + ": " + msg;
+                str = "MESSAGE " + nickname + " " + msg;
                 messageUser(str,sc);
                 messageOthers(nicknames.get(clientPort),str,sc);
+            }else{
+                messageUser("ERROR\n",sc);
             }
-            System.out.println("Error");
             break;
     }
     /*
@@ -259,15 +291,8 @@ public class ChatServer
   static public String joinRoom(String name,Integer port,String state,SocketChannel sc){
       String nickname = nicknames.get(port);
       if(state == "inside"){
-        for (Room room : rooms){
-            for (String user : room.getUsers()){
-                if(user == nicknames.get(port)){
-                    messageOthers(nicknames.get(port),"LEFT " + nickname,sc);
-                    room.removeUser(nicknames.get(port));
-                    break;
-                }
-            }
-        }
+          messageOthers(nicknames.get(port),"LEFT " + nickname,sc);
+          removeFromRoom(port);
       }
       for (Room room : rooms){
           if(room.getName().equals(name)){
@@ -281,6 +306,17 @@ public class ChatServer
       messageOthers(nicknames.get(port),"JOINED " + nickname,sc);
       rooms.add(room);
       return "OK";
+  }
+
+  static public void removeFromRoom(Integer clientPort){
+    for (Room room : rooms){
+        for (String user : room.getUsers()){
+            if(user == nicknames.get(clientPort)){
+                room.removeUser(nicknames.get(clientPort));
+                break;
+            }
+        }
+    }
   }
 
 

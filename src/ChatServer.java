@@ -20,7 +20,7 @@ public class ChatServer
 
   static private Map<Integer,String> nicknames = new HashMap<>();
 
-  static private Map<String,List<String>> room = new HashMap<>();
+  static private List<Room> rooms = new ArrayList<>();
 
   static public void main( String args[] ) throws Exception {
     // Parse port from command line
@@ -190,18 +190,24 @@ public class ChatServer
         case "/join":
             if(state.get(clientPort) == "outside"){
                 String roomName = command[1];
-                String resJoin = createRoom(roomName,clientPort);
-                System.out.println(resJoin);
+                String resJoin = joinRoom(roomName,clientPort);
+                messageUser(nicknames.get(clientPort),"OK\n",sc);
                 if(resJoin == "OK"){
                     state.put(clientPort,"inside");
                 }
             }
             else if(state.get(clientPort) == "inside"){
                 String roomName = command[1];
-                String resJoin = createRoom(roomName,clientPort);
-                System.out.println(resJoin);
+                String resJoin = joinRoom(roomName,clientPort);
+                messageUser(nicknames.get(clientPort),"OK\n",sc);
                 if(resJoin == "OK"){
                     state.put(clientPort,"inside");
+                }
+            }
+            for (Room room : rooms){
+                System.out.println(room.getName());
+                for (String user : room.getUsers()){
+                    System.out.println(user);
                 }
             }
             break;
@@ -211,19 +217,22 @@ public class ChatServer
             break;
         default:
             if(state.get(clientPort) == "inside"){
-                System.out.println("MESSAGE " + nicknames.get(clientPort) + " " + msg);
+                String nickname = nicknames.get(clientPort).replace("\n", "");
+                String str = "MESSAGE " + nickname + ": " + msg;
+                messageUser(nicknames.get(clientPort),str,sc);
+                messageOthers(nicknames.get(clientPort),str,sc);
             }
             System.out.println("Error");
             break;
     }
-
+    /*
     for (Map.Entry<String, List<String>> entry : room.entrySet()) {
         String key = entry.getKey();
         List<String> value = entry.getValue();
 
         System.out.println ("Key: " + key + " Value: " + value);
 }
-    // Decode and print the message to stdout
+    \Decode and print the message to stdout
     for(SocketChannel channel : channelList){ // alinea d
         if (channel.socket().getPort() == clientPort) continue;
         for (String roomName : room.keySet()){
@@ -232,7 +241,7 @@ public class ChatServer
                 buffer.flip();
             }
         } 
-    }
+    }*/
     return true;
   }
 
@@ -244,15 +253,45 @@ public class ChatServer
       return "Ok";
   }
 
-  static public String createRoom(String name,Integer port){
-      if(room.containsKey(name)){
-          room.get(name).add(nicknames.get(port));
-          return "OK";
+  static public String joinRoom(String name,Integer port){
+      for (Room room : rooms){
+          if(room.getName() == name){
+              room.addUser(nicknames.get(port));
+              return "OK";
+          }
       }
-      room.put(name,new ArrayList<String>());
-      room.get(name).add(nicknames.get(port));
+      Room room = new Room(name);
+      room.addUser(nicknames.get(port));
+      rooms.add(room);
       return "OK";
   }
+
+  static public void messageUser(String name,String msg,SocketChannel sc){
+      try{
+        buffer.clear();
+        buffer.put(msg.getBytes());
+        buffer.flip();
+        sc.write(buffer);
+      }catch(IOException ie){
+        System.out.println(ie);
+      }
+  }
+
+  static public void messageOthers(String name,String msg,SocketChannel sc){
+      try{
+        buffer.clear();
+        buffer.put(msg.getBytes());
+        buffer.flip();
+        for(SocketChannel channel : channelList){
+            if (channel.socket().getPort() == sc.socket().getPort()) continue;
+            channel.write(buffer);
+            buffer.flip();
+        }
+      }catch(IOException ie){
+        System.out.println(ie);
+      }
+  }
+
 }
 
 

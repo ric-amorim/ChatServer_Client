@@ -75,15 +75,9 @@ public class ChatClient {
         // Se for necessário adicionar código de inicialização ao
         // construtor, deve ser colocado aqui
 
-        /*
-         *
-         *    Non-blocking mode is useful in 
-         *    conjunction with selector-based multiplexing (ChatServer).
-         *
-         */
 
-        s = SocketChannel.open(new InetSocketAddress(server, port));
-        s.configureBlocking(false);
+        s = SocketChannel.open(new InetSocketAddress(server, port)); // Connection to server
+        s.configureBlocking(false); // Non-blocking mode
 
 
         this.server = server;
@@ -96,23 +90,23 @@ public class ChatClient {
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
         message = message + "\n";
-        if(message.charAt(0) == '/'){
+        if(message.charAt(0) == '/'){  // If isn't a command add "/" to the message
             String[] command = message.split(" ");
             if(!commands.contains(command[0]))
                 message = "/" + message;
         }
-        lastMessage = message;
-        s.write(charset.encode(message));
+        lastMessage = message; // Save last message for when we receive a response know what command was sent
+        s.write(charset.encode(message)); // Send message to server
 
           
 
     }
 
     public void processInput(String input) {
-        String[] response = input.split(" ");
+        String[] response = input.split(" "); 
 
-        switch(response[0].trim()){
-            case "ERROR":
+        switch(response[0].trim()){ // Process the response from the server
+            case "ERROR": 
                 String last = lastMessage.split(" ")[0];
                 switch(last){
                     case "/nick":
@@ -173,15 +167,15 @@ public class ChatClient {
         
     }
 
-    public void receiveMessages() {
+    public void receiveMessages() { // Receive messages from server
         try {
             String input;
-            while (true) {
+            while (true) { 
                buffer.clear();
-               if(s.read(buffer) >0){
+               if(s.read(buffer) >0){  // If there is something to read
                    buffer.flip();
-                   input = decoder.decode(buffer).toString();
-                   processInput(input);
+                   input = decoder.decode(buffer).toString(); 
+                   processInput(input); 
                } 
             }
         } catch (IOException e) {
@@ -191,16 +185,16 @@ public class ChatClient {
     
     // Método principal do objecto
     public void run() throws IOException {
-        Thread t = new Thread(){
+        Thread t = new Thread(){ // Thread to receive messages
             public void run(){
                 try{
-                    receiveMessages();
+                    receiveMessages(); 
                 } catch (Exception e){
                 }
             }
         };
 
-        t.start();
+        t.start(); // Start thread
 
     }
     
